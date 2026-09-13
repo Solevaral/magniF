@@ -264,7 +264,7 @@ internal sealed class Lens : IDisposable
     /// <summary>Страховка от пропущенного хуком отпускания.</summary>
     private void CheckHold(Settings s)
     {
-        var held = s.Binding.Count > 0 && s.Binding.All(vk => (GetAsyncKeyState(vk) & 0x8000) != 0);
+        var held = s.Binding.Count > 0 && s.Binding.All(IsDown);
         _missedHold = held ? 0 : _missedHold + 1;
         if (_missedHold >= 3)
         {
@@ -272,6 +272,11 @@ internal sealed class Lens : IDisposable
             HoldLost?.Invoke();
         }
     }
+
+    /// <summary>Win в бинде хранится как левый, но держать можно любой из двух.</summary>
+    private static bool IsDown(int vk) =>
+        (GetAsyncKeyState(vk) & 0x8000) != 0
+        || (vk == KeyBinding.VK_LWIN && (GetAsyncKeyState(KeyBinding.VK_RWIN) & 0x8000) != 0);
 
     private void HideOverlay()
     {
