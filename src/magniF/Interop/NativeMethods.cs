@@ -289,14 +289,39 @@ internal static class NativeMethods
 
     // ---- ввод ----
 
+    internal const uint INPUT_MOUSE = 0;
     internal const uint INPUT_KEYBOARD = 1;
     internal const uint KEYEVENTF_KEYUP = 0x0002;
+    internal const uint MOUSEEVENTF_MOVE = 0x0001;
 
     [StructLayout(LayoutKind.Explicit, Size = 40)]
     internal struct INPUT
     {
         [FieldOffset(0)] public uint type;
         [FieldOffset(8)] public KEYBDINPUT ki;
+        [FieldOffset(8)] public MOUSEINPUT mi;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    /// <summary>
+    /// Сдвиг мыши на 0 пикселей: Windows рассылает WM_SETCURSOR и перерисовывает курсор на месте.
+    /// Без этого после MagShowSystemCursor(true) курсор остаётся невидимым, пока мышь не сдвинут
+    /// (особенно над кнопками и ссылками, где форма курсора своя).
+    /// </summary>
+    internal static void RefreshCursor()
+    {
+        var inputs = new[] { new INPUT { type = INPUT_MOUSE, mi = new MOUSEINPUT { dwFlags = MOUSEEVENTF_MOVE } } };
+        SendInput(1, inputs, Marshal.SizeOf<INPUT>());
     }
 
     [StructLayout(LayoutKind.Sequential)]

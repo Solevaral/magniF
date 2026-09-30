@@ -1,8 +1,8 @@
 namespace magniF.Core;
 
 /// <summary>
-/// Режим модуля All-in-one (--hosted): без своей иконки в трее и без своего автозапуска —
-/// этим занимается каркас, а управляет он программой через канал <see cref="HostLink"/>.
+/// Режим модуля All in One (--hosted): без своего автозапуска — этим занимается All in One,
+/// а управляет он программой через канал <see cref="HostLink"/>. Иконка в трее остаётся.
 /// </summary>
 internal static class Hosting
 {

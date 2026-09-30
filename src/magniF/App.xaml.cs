@@ -83,16 +83,14 @@ public partial class App : Application
 
         if (Hosting.IsHosted)
         {
-            // Режим модуля All-in-one: иконки в трее нет, управление — через канал каркаса.
+            // Режим модуля All in One: дополнительно канал управления.
             _link = new HostLink(Hosting.PipeName, typeof(App).Assembly.GetName().Version?.ToString(3) ?? "?", HandleHost, HostActions);
             _link.Start();
         }
-        else
-        {
-            _tray = new TrayIcon();
-            _tray.LeftClick += (_, _) => ShowSettings();
-            _tray.RightClick += (_, _) => ShowMenu();
-        }
+
+        _tray = new TrayIcon();
+        _tray.LeftClick += (_, _) => ShowSettings();
+        _tray.RightClick += (_, _) => ShowMenu();
         UpdateTray();
 
         _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSettingsSignal);
@@ -143,7 +141,7 @@ public partial class App : Application
 
     private IEnumerable<(string Id, string Title)> HostActions() =>
     [
-        ("toggle", Strings.MenuEnabled),
+        ("toggle", Strings.ToggleMagnifier),
         ("settings", Strings.MenuSettings),
     ];
 
@@ -241,7 +239,7 @@ public partial class App : Application
         _menu.Items.Add(settings);
         _menu.Items.Add(new Separator());
         _menu.Items.Add(enabled);
-        _menu.Items.Add(autostart);
+        if (!Hosting.IsHosted) _menu.Items.Add(autostart);   // в режиме модуля автозапуском управляет All in One
         _menu.Items.Add(new Separator());
         _menu.Items.Add(exit);
 

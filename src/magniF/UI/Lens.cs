@@ -201,6 +201,7 @@ internal sealed class Lens : IDisposable
         _wanted = false;
         // Курсор возвращаем сразу: пользователь уже отпустил клавишу и может целиться.
         ShowCursor(true);
+        if (_cursorApi) RefreshCursor();
 
         if (Math.Abs(_zoom - _settingsZoom) > 0.001)
         {

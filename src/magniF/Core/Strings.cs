@@ -32,6 +32,7 @@ public static class Strings
 
     public static string MenuSettings => S("Settings…", "Настройки…");
     public static string MenuEnabled => S("Magnifier enabled", "Лупа включена");
+    public static string ToggleMagnifier => S("Toggle magnifier", "Вкл/выкл лупу");
     public static string MenuAutoStart => S("Start with Windows", "Запускать с Windows");
     public static string MenuExit => S("Exit", "Выход");
     public static string Tooltip(string bind) => S($"magniF — hold {bind}", $"magniF — удерживайте {bind}");
