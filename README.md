@@ -69,6 +69,10 @@ unhandled error.
   you need it in such windows.
 - The UAC prompt and Ctrl+Alt+Del live on the secure desktop and can't be magnified.
 
+## All-in-one module
+
+magniF can run as a module of [All-in-one](https://github.com/Solevaral/All-in-one), a launcher that installs, updates and starts several tools from one place. The launcher starts it with `--hosted --pipe <name>`. In that mode magniF has no tray icon of its own and no autostart switch; the launcher shows its status, opens its windows and stops it gracefully over a named pipe (the cursor and input hooks are restored before exit). Started normally, magniF works exactly as before.
+
 ## Build
 
 ```bash

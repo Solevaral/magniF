@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -21,6 +22,7 @@ public partial class App : Application
     private volatile Settings _snapshot = null!;
     private Lens? _lens;
     private TrayIcon? _tray;
+    private HostLink? _link;
     private ContextMenu? _menu;
     private SettingsWindow? _settingsWindow;
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
@@ -33,6 +35,8 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        Hosting.Init(e.Args);
+
         _mutex = new Mutex(initiallyOwned: true, SingleInstanceName, out var isFirstInstance);
         if (!isFirstInstance)
         {
@@ -77,9 +81,18 @@ public partial class App : Application
         _lens.HoldLost += Input.Resync;
         _lens.ZoomCommitted += zoom => Dispatcher.BeginInvoke(() => _settings.Zoom = zoom);
 
-        _tray = new TrayIcon();
-        _tray.LeftClick += (_, _) => ShowSettings();
-        _tray.RightClick += (_, _) => ShowMenu();
+        if (Hosting.IsHosted)
+        {
+            // Режим модуля All-in-one: иконки в трее нет, управление — через канал каркаса.
+            _link = new HostLink(Hosting.PipeName, typeof(App).Assembly.GetName().Version?.ToString(3) ?? "?", HandleHost, HostActions);
+            _link.Start();
+        }
+        else
+        {
+            _tray = new TrayIcon();
+            _tray.LeftClick += (_, _) => ShowSettings();
+            _tray.RightClick += (_, _) => ShowMenu();
+        }
         UpdateTray();
 
         _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSettingsSignal);
@@ -91,7 +104,7 @@ public partial class App : Application
         if (firstRun)
         {
             _settings.Save();
-            ShowSettings();
+            if (!Hosting.IsHosted) ShowSettings();
         }
     }
 
@@ -110,14 +123,69 @@ public partial class App : Application
             UpdateTray();
             if (!_settings.Enabled) _lens?.Hide();
         }
+        else if (e.PropertyName == nameof(Settings.Zoom))
+        {
+            _link?.Publish("statusChanged", HostStatus());
+        }
 
         _saveTimer.Stop();
         _saveTimer.Start();
     }
 
-    private void UpdateTray() =>
+    private void UpdateTray()
+    {
         _tray?.Update(_settings.Enabled,
             _settings.Enabled ? Strings.Tooltip(KeyBinding.Format(_settings.Binding)) : Strings.TooltipOff);
+        _link?.Publish("statusChanged", HostStatus());
+    }
+
+    // ---- канал каркаса All-in-one ----
+
+    private IEnumerable<(string Id, string Title)> HostActions() =>
+    [
+        ("toggle", Strings.MenuEnabled),
+        ("settings", Strings.MenuSettings),
+    ];
+
+    private object HostStatus() => new
+    {
+        state = "running",
+        summary = _settings.Enabled
+            ? $"{KeyBinding.Format(_settings.Binding)} · ×{_settings.Zoom:0.##}"
+            : Strings.TooltipOff.Split(" — ").Last(),
+        enabled = _settings.Enabled,
+        zoom = _settings.Zoom,
+    };
+
+    private Task<object?> HandleHost(string method, JsonNode? args)
+    {
+        switch (method)
+        {
+            case "getStatus":
+                break;
+            case "showWindow":
+                ShowSettings();
+                break;
+            case "setEnabled":
+                _settings.Enabled = args?["enabled"]?.GetValue<bool>() ?? true;
+                break;
+            case "invoke":
+                switch (args?["action"]?.GetValue<string>())
+                {
+                    case "toggle": _settings.Enabled = !_settings.Enabled; break;
+                    case "settings": ShowSettings(); break;
+                    default: throw new HostLinkError("Unknown action", "unknownAction");
+                }
+                break;
+            case "shutdown":
+                // Ответ уходит раньше, чем приложение закроется; курсор и хуки вернёт ExitApp.
+                _ = Task.Delay(150).ContinueWith(_ => Dispatcher.BeginInvoke(ExitApp));
+                return Task.FromResult<object?>(new { accepted = true });
+            default:
+                throw new HostLinkError($"Unknown method {method}", "unknownMethod");
+        }
+        return Task.FromResult<object?>(HostStatus());
+    }
 
     internal void ShowSettings()
     {
@@ -202,6 +270,7 @@ public partial class App : Application
         }
 
         _settingsWindow?.Close();
+        _link?.Dispose();
         _tray?.Dispose();
         (Input as IDisposable)?.Dispose();
         _lens?.Dispose();

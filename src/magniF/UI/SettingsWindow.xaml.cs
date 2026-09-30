@@ -28,6 +28,8 @@ public partial class SettingsWindow : Window
             slider.Format = "{0:0} " + Strings.Ms;
 
         AutoStartToggle.IsChecked = AutoStart.IsEnabled;
+        // В режиме модуля автозапуском управляет каркас All-in-one.
+        if (Hosting.IsHosted) AutoStartToggle.Visibility = Visibility.Collapsed;
         _settings.PropertyChanged += OnSettingsChanged;
         SourceInitialized += (_, _) => ApplyDarkTitleBar();
         Deactivated += (_, _) => StopRecording();
