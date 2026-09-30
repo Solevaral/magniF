@@ -314,15 +314,28 @@ internal static class NativeMethods
     }
 
     /// <summary>
-    /// Сдвиг мыши на 0 пикселей: Windows рассылает WM_SETCURSOR и перерисовывает курсор на месте.
-    /// Без этого после MagShowSystemCursor(true) курсор остаётся невидимым, пока мышь не сдвинут
-    /// (особенно над кнопками и ссылками, где форма курсора своя).
+    /// Заставляет Windows заново нарисовать курсор после MagShowSystemCursor(true).
+    /// Сам вызов только снимает флаг скрытия: курсор появляется при следующей смене его формы,
+    /// а над кнопками и ссылками форма не меняется (SetCursor с той же «рукой» ничего не делает),
+    /// и курсор остаётся невидимым. SPI_SETCURSORS перезагружает системные курсоры из текущей схемы
+    /// (с её размером и цветом) и перерисовывает текущий; сдвиг на пиксель и обратно рассылает
+    /// WM_SETCURSOR окну под курсором.
     /// </summary>
     internal static void RefreshCursor()
     {
-        var inputs = new[] { new INPUT { type = INPUT_MOUSE, mi = new MOUSEINPUT { dwFlags = MOUSEEVENTF_MOVE } } };
-        SendInput(1, inputs, Marshal.SizeOf<INPUT>());
+        SystemParametersInfo(SPI_SETCURSORS, 0, IntPtr.Zero, 0);
+        if (!GetCursorPos(out var p)) return;
+        SetCursorPos(p.x > 0 ? p.x - 1 : p.x + 1, p.y);
+        SetCursorPos(p.x, p.y);
     }
+
+    private const uint SPI_SETCURSORS = 0x0057;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetCursorPos(int x, int y);
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct KEYBDINPUT

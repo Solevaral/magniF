@@ -273,6 +273,7 @@ public partial class App : Application
         (Input as IDisposable)?.Dispose();
         _lens?.Dispose();
         Magnification.TryShowCursor();
+        NativeMethods.RefreshCursor();
         Shutdown();
     }
 }

@@ -51,6 +51,7 @@ internal sealed class Lens : IDisposable
     private double _settingsZoom;
     private int _missedHold;
     private int _frame;
+    private bool _cursorRefresh;
 
     public Lens(Func<Settings> settings)
     {
@@ -140,6 +141,7 @@ internal sealed class Lens : IDisposable
             HoldLost?.Invoke();
             ShowWindow(_window, SW_HIDE);
             _visible = false;
+            RefreshCursorIfPending();
             try
             {
                 _gpu?.Dispose();
@@ -201,13 +203,22 @@ internal sealed class Lens : IDisposable
         _wanted = false;
         // Курсор возвращаем сразу: пользователь уже отпустил клавишу и может целиться.
         ShowCursor(true);
-        if (_cursorApi) RefreshCursor();
+        _cursorRefresh = _cursorApi;
+        if (!_visible) RefreshCursorIfPending();
 
         if (Math.Abs(_zoom - _settingsZoom) > 0.001)
         {
             _settingsZoom = _zoom;
             ZoomCommitted?.Invoke(Math.Round(_zoom, 2));
         }
+    }
+
+    /// <summary>Курсор перерисовывается, когда окно лупы уже скрыто, — иначе Windows рисует его под лупой.</summary>
+    private void RefreshCursorIfPending()
+    {
+        if (!_cursorRefresh) return;
+        _cursorRefresh = false;
+        RefreshCursor();
     }
 
     private void SyncZoomFromSettings()
@@ -226,6 +237,7 @@ internal sealed class Lens : IDisposable
         if (!_wanted)
         {
             HideOverlay();
+            RefreshCursorIfPending();
             return;
         }
 
